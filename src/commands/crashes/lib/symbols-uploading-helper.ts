@@ -7,9 +7,9 @@ import AzureBlobUploadHelper from "./azure-blob-upload-helper";
 export default class SymbolsUploadingHelper {
   constructor(private client: AppCenterClient, private app: DefaultApp, private debug: Function) {}
 
-  public async uploadSymbolsZip(zip: string): Promise<void> {
+  public async uploadSymbolsZip(zip: string, symbolOpt?: any): Promise<void> {
     // executing API request to get an upload URL
-    const uploadingBeginRequestResult = await this.executeSymbolsUploadingBeginRequest(this.client, this.app);
+    const uploadingBeginRequestResult = await this.executeSymbolsUploadingBeginRequest(this.client, this.app, symbolOpt);
 
     // uploading
     const symbolUploadId = uploadingBeginRequestResult.symbolUploadId;
@@ -28,10 +28,10 @@ export default class SymbolsUploadingHelper {
     }
   }
 
-  private async executeSymbolsUploadingBeginRequest(client: AppCenterClient, app: DefaultApp): Promise<models.SymbolUploadBeginResponse> {
+  private async executeSymbolsUploadingBeginRequest(client: AppCenterClient, app: DefaultApp, symbolOpt?: any): Promise<models.SymbolUploadBeginResponse> {
     this.debug("Executing API request to get uploading URL");
     const uploadingBeginResponse = await clientRequest<models.SymbolUploadBeginResponse>((cb) => client.symbolUploads.create(
-      { symbolType: "Apple" }, // Temporary hard coding until type is threaded through the commands
+      symbolOpt || { symbolType: "Apple" }, // Temporary hard coding until type is threaded through the commands
       app.ownerName,
       app.appName,
       cb)).catch((error: any) => {

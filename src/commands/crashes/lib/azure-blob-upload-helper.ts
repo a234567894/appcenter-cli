@@ -3,6 +3,7 @@ import * as Url from "url";
 
 import { ErrorCodes, failure } from "../../../util/commandline";
 import { inspect } from "util";
+import * as Path from "path";
 
 export default class AzureBlobUploadHelper {
   constructor(private debug: Function) {}
@@ -17,14 +18,24 @@ export default class AzureBlobUploadHelper {
 
   private uploadBlockBlob(blobService: AzureStorage.BlobService, container: string, blob: string, file: string): Promise<void> {
     return new Promise<void> ((resolve, reject) => {
+      let contentType = "";
+      switch (Path.extname(file).toLowerCase()) {
+        case ".txt":
+        contentType = "text/plain";
+        break;
+        case ".zip":
+        contentType = "application/zip";
+        break;
+      }
+      //  ==".txt"
       blobService.createBlockBlobFromLocalFile(container, blob, file, {
         contentSettings: {
-          contentType: "application/zip"
+          contentType: contentType
         }
       }, (error, result, response) => {
         if (error) {
-          this.debug(`Failed to upload ZIP with symbols - ${inspect(error)}`);
-          reject(failure(ErrorCodes.Exception, "failed to upload ZIP with symbols"));
+          this.debug(`Failed to upload ${contentType} with symbols - ${inspect(error)}`);
+          reject(failure(ErrorCodes.Exception, "failed to upload ${contentType} with symbols"));
         } else {
           resolve();
         }

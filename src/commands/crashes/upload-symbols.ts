@@ -24,7 +24,8 @@ enum SymbolFsEntryType {
   DsymFolder,
   DsymParentFolder,
   XcArchive,
-  ZipFile
+  ZipFile,
+  MappingTxtFile
 }
 
 @help("Upload the crash symbols for the application")
@@ -47,6 +48,24 @@ export default class UploadSymbols extends AppCommand {
   @hasArg
   public sourceMapPath: string;
 
+  @help("Path to a Android mapping txt file.")
+  @shortName("M")
+  @longName("androidmap")
+  @hasArg
+  public androidMapPath: string;
+
+  @help("Android version name")
+  @shortName("V")
+  @longName("androidversion")
+  @hasArg
+  public androidVersion: string;
+
+  @help("Android version code(build number).")
+  @shortName("B")
+  @longName("androidbuild")
+  @hasArg
+  public androidBuild: string;
+
   public async run(client: AppCenterClient): Promise<CommandResult> {
     const app: DefaultApp = this.app;
 
@@ -56,9 +75,18 @@ export default class UploadSymbols extends AppCommand {
     if (!_.isNil(this.symbolsPath)) {
       // processing -s switch value
       zip = await out.progress("Preparing ZIP with symbols...", this.prepareZipFromSymbols(this.symbolsPath));
-    } else {
+    } else if (!_.isNil(this.xcarchivePath)) {
       // process -x switch value
       zip = await out.progress("Preparing ZIP with symbols from xcarchive...", this.prepareZipFromXcArchive(this.xcarchivePath));
+    } else if (!_.isNil(this.androidMapPath) && !_.isNil(this.androidVersion) && !_.isNil(this.androidBuild)) {
+      const helper = new UploadSymbolsHelper(client, app, debug);
+      await out.progress("Uploading symbols...", helper.uploadSymbolsZip(this.androidMapPath, {
+        symbolType: "AndroidProguard",
+        fileName: Path.basename(this.androidMapPath),
+        version: this.androidVersion,
+        build: this.androidBuild
+      }));
+      return success();
     }
 
     // process -m switch if specified
@@ -159,7 +187,9 @@ export default class UploadSymbols extends AppCommand {
   private validateParameters() {
     // check that user have selected either --symbol or --xcarchive
     if (_.isNil(this.symbolsPath) && _.isNil(this.xcarchivePath)) {
-      throw failure(ErrorCodes.InvalidParameter, "specify either '--symbol' or '--xcarchive' switch");
+      if (_.isNil(this.androidMapPath) && _.isNil(this.androidVersion) && _.isNil(this.androidBuild)) {
+        throw failure(ErrorCodes.InvalidParameter, "specify either '--symbol' or '--xcarchive' switch");
+      }
     } else if (!_.isNil(this.symbolsPath) && !_.isNil(this.xcarchivePath)) {
       throw failure(ErrorCodes.InvalidParameter, "'--symbol' and '--xcarchive' switches are mutually exclusive");
     }
